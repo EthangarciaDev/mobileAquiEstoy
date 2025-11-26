@@ -16,6 +16,10 @@ module.exports = {
       supportsTablet: true,
       config: {
         googleMapsApiKey: ""
+      },
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription: "Esta aplicación necesita acceso a tu ubicación para mostrarte los casos de ayuda cercanos.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Esta aplicación necesita acceso a tu ubicación para mostrarte los casos de ayuda cercanos."
       }
     },
     android: {
@@ -31,7 +35,11 @@ module.exports = {
         googleMaps: {
           apiKey: ""
         }
-      }
+      },
+      permissions: [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     web: {
       output: "static",

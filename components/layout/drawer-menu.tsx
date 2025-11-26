@@ -1,19 +1,21 @@
-import React, { useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Animated, 
-  SafeAreaView,
-  Dimensions,
-  Image 
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
-import { MenuItem } from '@/types';
-import { mockUsuario } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { MenuItem, Usuario } from '@/types';
+import { obtenerDatosUsuario } from '@/utils/firebase';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Animated,
+    Dimensions,
+    Image,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(300, Math.round(SCREEN_WIDTH * 0.78));
@@ -26,7 +28,10 @@ interface DrawerMenuProps {
 
 export function DrawerMenu({ isOpen, onClose, menuItems }: DrawerMenuProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     Animated.timing(drawerAnim, {
@@ -35,6 +40,22 @@ export function DrawerMenu({ isOpen, onClose, menuItems }: DrawerMenuProps) {
       useNativeDriver: true,
     }).start();
   }, [isOpen, drawerAnim]);
+
+  useEffect(() => {
+    cargarDatosUsuario();
+  }, [user]);
+
+  const cargarDatosUsuario = async () => {
+    if (!user) {
+      setCargando(false);
+      return;
+    }
+    
+    setCargando(true);
+    const datos = await obtenerDatosUsuario(user.uid);
+    setDatosUsuario(datos);
+    setCargando(false);
+  };
 
   const getIconName = (key: string): keyof typeof Ionicons.glyphMap => {
     const iconMap: { [key: string]: keyof typeof Ionicons.glyphMap } = {
@@ -97,12 +118,24 @@ export function DrawerMenu({ isOpen, onClose, menuItems }: DrawerMenuProps) {
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header del drawer con perfil de usuario */}
           <View style={styles.drawerHeader}>
-            <Image
-              source={{ uri: mockUsuario.fotoPerfil }}
-              style={styles.profileImage}
-            />
-            <Text style={styles.userName}>{mockUsuario.nombre}</Text>
-            <Text style={styles.userEmail}>{mockUsuario.correo}</Text>
+            {cargando ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : datosUsuario ? (
+              <>
+                <Image
+                  source={{ uri: datosUsuario.fotoPerfil || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png' }}
+                  style={styles.profileImage}
+                />
+                <Text style={styles.userName}>{datosUsuario.nombre}</Text>
+                <Text style={styles.userEmail}>{datosUsuario.correo}</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="person-circle-outline" size={80} color="#FFFFFF" />
+                <Text style={styles.userName}>Usuario</Text>
+                <Text style={styles.userEmail}>{user?.email || 'No disponible'}</Text>
+              </>
+            )}
           </View>
 
           {/* Menú items */}

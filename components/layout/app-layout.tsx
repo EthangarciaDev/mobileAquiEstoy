@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
-import { Header } from './header';
-import { Footer } from './footer';
-import { DrawerMenu } from './drawer-menu';
 import { MenuItem } from '@/types';
+import { usePathname } from 'expo-router';
+import React, { useState } from 'react';
+import { StatusBar, StyleSheet, View } from 'react-native';
+import { DrawerMenu } from './drawer-menu';
+import { Footer } from './footer';
+import { Header } from './header';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,26 +23,32 @@ const MENU_ITEMS: MenuItem[] = [
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
+
+  // Verificar si estamos en una página pública (sin header/footer/menu)
+  const isPublicPage = pathname === '/login' || pathname === '/registro';
 
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f8f8" />
       <View style={styles.container}>
-        <Header onMenuPress={toggleMenu} />
+        {!isPublicPage && <Header onMenuPress={toggleMenu} />}
         
         <View style={styles.main}>
           {children}
         </View>
 
-        <Footer />
+        {!isPublicPage && <Footer />}
 
-        <DrawerMenu
-          isOpen={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          menuItems={MENU_ITEMS}
-        />
+        {!isPublicPage && (
+          <DrawerMenu
+            isOpen={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            menuItems={MENU_ITEMS}
+          />
+        )}
       </View>
     </>
   );

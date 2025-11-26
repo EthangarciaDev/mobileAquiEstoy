@@ -2,10 +2,12 @@ import { theme } from '@/constants/theme';
 import { Caso } from '@/types';
 import { obtenerCasosActivos } from '@/utils/casosService';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,7 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MapaScreen() {
@@ -21,11 +23,81 @@ export default function MapaScreen() {
   const [vistaLista, setVistaLista] = useState(false);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [ubicacionUsuario, setUbicacionUsuario] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [region, setRegion] = useState<Region>({
+    latitude: 19.4326,
+    longitude: -99.1332,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const mapRef = useRef<MapView>(null);
 
-  // Cargar casos desde Firebase
+  // Cargar casos y obtener ubicación del usuario
   useEffect(() => {
+    obtenerUbicacionUsuario();
     cargarCasos();
   }, []);
+
+  const obtenerUbicacionUsuario = async () => {
+    try {
+      // Solicitar permisos de ubicación
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permiso de ubicación',
+          'Necesitamos acceso a tu ubicación para mostrarte los casos cercanos',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Obtener ubicación actual
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const userLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+
+      setUbicacionUsuario(userLocation);
+
+      // Centrar el mapa en la ubicación del usuario
+      const newRegion = {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      };
+
+      setRegion(newRegion);
+
+    } catch (error) {
+      console.error('Error al obtener ubicación:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo obtener tu ubicación. Mostrando mapa por defecto.'
+      );
+    }
+  };
+
+  const centrarEnUsuario = () => {
+    if (ubicacionUsuario && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: ubicacionUsuario.latitude,
+        longitude: ubicacionUsuario.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      }, 1000);
+    } else {
+      Alert.alert('Ubicación no disponible', 'No se pudo obtener tu ubicación actual');
+    }
+  };
 
   const cargarCasos = async () => {
     setCargando(true);
@@ -115,14 +187,27 @@ export default function MapaScreen() {
         <View style={styles.mapContainer}>
           {/* Mapa real con React Native Maps */}
           <MapView
+            ref={mapRef}
             style={styles.map}
-            initialRegion={{
-              latitude: 19.4326, // Ciudad de México
-              longitude: -99.1332,
-              latitudeDelta: 0.0922,
-              longitudeDelta: 0.0421,
-            }}
+            region={region}
+            onRegionChangeComplete={setRegion}
+            showsUserLocation={true}
+            showsMyLocationButton={false}
+            followsUserLocation={false}
           >
+            {/* Marcador de ubicación del usuario */}
+            {ubicacionUsuario && (
+              <Marker
+                coordinate={ubicacionUsuario}
+                title="Tu ubicación"
+                description="Estás aquí"
+              >
+                <View style={styles.userMarker}>
+                  <View style={styles.userMarkerInner} />
+                </View>
+              </Marker>
+            )}
+
             {/* Marcadores de casos */}
             {casos.map((caso) => {
               if (!caso.coordenadas) return null;
@@ -154,13 +239,38 @@ export default function MapaScreen() {
 
           {/* Botones de control */}
           <View style={styles.mapControls}>
-            <TouchableOpacity style={styles.controlButton}>
+            <TouchableOpacity 
+              style={styles.controlButton}
+              onPress={centrarEnUsuario}
+            >
               <Ionicons name="locate" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton}>
+            <TouchableOpacity 
+              style={styles.controlButton}
+              onPress={() => {
+                if (mapRef.current) {
+                  mapRef.current.animateToRegion({
+                    ...region,
+                    latitudeDelta: region.latitudeDelta / 2,
+                    longitudeDelta: region.longitudeDelta / 2,
+                  }, 300);
+                }
+              }}
+            >
               <Ionicons name="add" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton}>
+            <TouchableOpacity 
+              style={styles.controlButton}
+              onPress={() => {
+                if (mapRef.current) {
+                  mapRef.current.animateToRegion({
+                    ...region,
+                    latitudeDelta: region.latitudeDelta * 2,
+                    longitudeDelta: region.longitudeDelta * 2,
+                  }, 300);
+                }
+              }}
+            >
               <Ionicons name="remove" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
           </View>
@@ -392,5 +502,21 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     fontSize: 16,
     color: theme.colors.textSecondary,
+  },
+  userMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(66, 133, 244, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#4285F4',
+  },
+  userMarkerInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4285F4',
   },
 });

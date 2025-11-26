@@ -4,13 +4,13 @@ import firebaseConfig from '@/constants/firebaseConfig';
 import { Usuario } from '@/types';
 import { initializeApp } from 'firebase/app';
 import {
-    createUserWithEmailAndPassword,
-    getAuth,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signOut,
-    updateProfile,
-    User,
+  createUserWithEmailAndPassword,
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  User,
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 
@@ -140,6 +140,24 @@ export const obtenerDatosUsuario = async (
   } catch (error) {
     console.error('Error al obtener datos del usuario:', error);
     return null;
+  }
+};
+
+// Actualizar datos del usuario en Firestore
+export const actualizarDatosUsuario = async (
+  uid: string,
+  datos: Partial<Usuario>
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const docRef = doc(db, 'Usuario', uid);
+    
+    // Actualizar solo los campos proporcionados
+    await setDoc(docRef, datos, { merge: true });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al actualizar datos del usuario:', error);
+    return { success: false, error: 'Error al actualizar los datos' };
   }
 };
 

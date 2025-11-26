@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import { CasoCard } from '@/components/casos/caso-card';
+import { theme } from '@/constants/theme';
+import { Caso } from '@/types';
+import { obtenerCasosActivos } from '@/utils/casosService';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
+  FlatList,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/constants/theme';
-import { mockCasosFeed } from '@/constants/mockData';
-import { CasoCard } from '@/components/casos/caso-card';
 
 const TIPOS_AYUDA = [
   'Todos',
@@ -32,8 +34,21 @@ export default function BusquedaScreen() {
   const [prioridadSeleccionada, setPrioridadSeleccionada] = useState('Todas');
   const [vistaActiva, setVistaActiva] = useState<'lista' | 'mapa'>('lista');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [casos, setCasos] = useState<Caso[]>([]);
+  const [cargando, setCargando] = useState(true);
 
-  const casosFiltrados = mockCasosFeed.filter((caso) => {
+  useEffect(() => {
+    cargarCasos();
+  }, []);
+
+  const cargarCasos = async () => {
+    setCargando(true);
+    const casosObtenidos = await obtenerCasosActivos();
+    setCasos(casosObtenidos);
+    setCargando(false);
+  };
+
+  const casosFiltrados = casos.filter((caso) => {
     const coincideBusqueda =
       busqueda === '' ||
       caso.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -49,11 +64,19 @@ export default function BusquedaScreen() {
     return coincideBusqueda && coincideTipo && coincidePrioridad;
   });
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Buscar Casos</Text>
@@ -178,7 +201,12 @@ export default function BusquedaScreen() {
       </View>
 
       {/* Resultados */}
-      {vistaActiva === 'lista' ? (
+      {cargando ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Cargando casos...</Text>
+        </View>
+      ) : vistaActiva === 'lista' ? (
         <FlatList
           data={casosFiltrados}
           keyExtractor={(item) => item.id}
@@ -364,5 +392,16 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: theme.spacing.md,
+    fontSize: 16,
+    color: theme.colors.textSecondary,
   },
 });

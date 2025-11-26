@@ -2,19 +2,21 @@
 
 // Usuario Donador
 export interface Usuario {
-  id: string;
+  id?: string;
   nombre: string;
   correo: string;
   telefono: string;
   ubicacion: string;
   fotoPerfil?: string;
-  zonaDonacionHabitual: string;
-  preferenciasNotificacion: {
+  zonaDonacionHabitual?: string;
+  preferenciasNotificacion?: {
     nuevoCasos: boolean;
     actualizacionesDonaciones: boolean;
     mensajesAgradecimiento: boolean;
   };
-  fechaRegistro: string;
+  fechaRegistro?: string;
+  password?: string;
+  casosParticipados?: number[];
 }
 
 // Caso de ayuda

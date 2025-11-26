@@ -23,96 +23,96 @@ const db = getFirestore(app);
 // Imagen genérica para todos los casos
 const IMAGEN_GENERICA = 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800&q=80';
 
-// Casos de ejemplo
+// Casos de ejemplo en Puebla, México
 const casosEjemplo = [
   {
-    nombre: 'Apoyo con alimentos para familia numerosa',
-    descripcion: 'Familia de 6 personas necesita apoyo con despensa básica',
-    infoAdicional: 'Familia con 4 niños pequeños que perdió su fuente de ingreso. Necesitan urgentemente alimentos no perecederos, arroz, frijol, aceite, leche en polvo y productos de higiene básica. El padre está buscando empleo activamente.',
-    ubicacion: 'Iztapalapa, Ciudad de México',
+    nombre: 'Apoyo alimentario para familia en Angelópolis',
+    descripcion: 'Familia de 5 personas necesita despensa básica urgente',
+    infoAdicional: 'Familia en situación vulnerable en la zona de Angelópolis. El padre perdió su trabajo en la industria automotriz y necesitan apoyo con alimentos básicos: arroz, frijol, aceite, pasta, atún, leche y productos de limpieza. Tienen 3 niños en edad escolar.',
+    ubicacion: 'Angelópolis, Puebla',
     prioridad: 'Alta',
     estado: 'Activo',
     peticion: 'Alimentos y despensa básica',
-    imagen: IMAGEN_GENERICA,
-    beneficiario: 'Familia González',
+    imagen: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=800&q=80',
+    beneficiario: 'Familia Martínez Rivera',
     destacado: true,
     coordenadas: {
-      latitud: 19.3564,
-      longitud: -99.0584
+      latitud: 19.0155,
+      longitud: -98.2636
     },
-    distancia: 3.5,
+    distancia: 2.8,
     fecha: new Date().toISOString(),
   },
   {
-    nombre: 'Donación de ropa de invierno para adulto mayor',
-    descripcion: 'Señor de 75 años necesita ropa abrigadora para la temporada de frío',
-    infoAdicional: 'Don José vive solo y tiene problemas de movilidad. Necesita cobijas, suéters talla grande, pantalones cómodos y zapatos cerrados número 27. También requiere bastón para caminar.',
-    ubicacion: 'Nezahualcóyotl, Estado de México',
-    prioridad: 'Media',
+    nombre: 'Cobijas para el frío en San Pedro Cholula',
+    descripcion: 'Adultos mayores necesitan cobijas para enfrentar el invierno',
+    infoAdicional: 'Casa hogar con 8 adultos mayores en San Pedro Cholula necesita cobijas térmicas, colchas gruesas y ropa de invierno. Las temperaturas bajan mucho en la temporada y no cuentan con calefacción. También necesitan pijamas abrigadoras.',
+    ubicacion: 'San Pedro Cholula, Puebla',
+    prioridad: 'Alta',
     estado: 'Activo',
-    peticion: 'Ropa y cobijas',
-    imagen: IMAGEN_GENERICA,
-    beneficiario: 'Don José Ramírez',
-    destacado: false,
+    peticion: 'Cobijas y ropa de invierno',
+    imagen: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=800&q=80',
+    beneficiario: 'Casa Hogar Santa María',
+    destacado: true,
     coordenadas: {
-      latitud: 19.4006,
-      longitud: -99.0145
+      latitud: 19.0639,
+      longitud: -98.3030
     },
-    distancia: 7.2,
-    fecha: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // Hace 2 días
+    distancia: 8.5,
+    fecha: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    nombre: 'Medicamentos para tratamiento crónico',
-    descripcion: 'Paciente diabético necesita insulina y medicamentos para control',
-    infoAdicional: 'Persona con diabetes tipo 1 que no puede costear su tratamiento mensual. Requiere insulina glargina, tiras reactivas para medidor de glucosa, y metformina. Tiene receta médica vigente del IMSS.',
-    ubicacion: 'Tlalpan, Ciudad de México',
+    nombre: 'Medicamentos para tratamiento respiratorio',
+    descripcion: 'Niña con asma necesita medicamentos para su tratamiento',
+    infoAdicional: 'Niña de 7 años en la colonia La Paz con asma crónica. Requiere inhaladores (salbutamol y beclometasona), nebulizador y medicamentos para control. Su familia no puede costear el tratamiento completo. Tiene receta del Hospital del Niño Poblano.',
+    ubicacion: 'Colonia La Paz, Puebla Centro',
     prioridad: 'Alta',
     estado: 'Activo',
     peticion: 'Medicamentos',
-    imagen: IMAGEN_GENERICA,
-    beneficiario: 'María Teresa López',
-    destacado: true,
+    imagen: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80',
+    beneficiario: 'Sofía Ramírez Flores',
+    destacado: false,
     coordenadas: {
-      latitud: 19.2837,
-      longitud: -99.1661
+      latitud: 19.0414,
+      longitud: -98.2063
     },
-    distancia: 2.1,
-    fecha: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // Hace 1 día
+    distancia: 3.2,
+    fecha: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    nombre: 'Útiles escolares para estudiante de primaria',
-    descripcion: 'Niño de 8 años necesita materiales para continuar sus estudios',
-    infoAdicional: 'Estudiante de tercer grado de primaria necesita cuadernos, lápices, colores, mochila y uniformes escolares. Su madre trabaja como empleada doméstica y no puede costear los materiales completos. El niño es muy aplicado y no quiere faltar a clases.',
-    ubicacion: 'Gustavo A. Madero, Ciudad de México',
+    nombre: 'Útiles escolares en Tehuacán',
+    descripcion: 'Estudiantes de primaria necesitan materiales escolares',
+    infoAdicional: 'Escuela primaria en comunidad rural de Tehuacán con 15 estudiantes que no tienen recursos para útiles escolares. Necesitan cuadernos, lápices, colores, tijeras, pegamento, mochilas y uniformes. Los niños quieren seguir estudiando.',
+    ubicacion: 'Tehuacán, Puebla',
     prioridad: 'Media',
     estado: 'Activo',
     peticion: 'Útiles escolares',
-    imagen: IMAGEN_GENERICA,
-    beneficiario: 'Carlos Hernández (8 años)',
+    imagen: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&q=80',
+    beneficiario: 'Escuela Primaria Benito Juárez',
     destacado: false,
     coordenadas: {
-      latitud: 19.4889,
-      longitud: -99.1269
+      latitud: 18.4631,
+      longitud: -97.3931
     },
-    distancia: 5.8,
-    fecha: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // Hace 3 días
+    distancia: 120.5,
+    fecha: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    nombre: 'Silla de ruedas para persona con discapacidad',
-    descripcion: 'Joven con discapacidad motriz necesita silla de ruedas',
-    infoAdicional: 'Joven de 23 años que sufrió un accidente y quedó con movilidad reducida. Necesita urgentemente una silla de ruedas para poder desplazarse y asistir a sus terapias de rehabilitación. También requiere colchón antiescaras y cojín especializado.',
-    ubicacion: 'Coyoacán, Ciudad de México',
+    nombre: 'Silla de ruedas en Cuautlancingo',
+    descripcion: 'Persona con discapacidad requiere silla de ruedas',
+    infoAdicional: 'Joven de 28 años con parálisis cerebral que vive en Cuautlancingo. Su silla de ruedas se descompuso y no puede movilizarse. Necesita silla de ruedas resistente, preferiblemente con reposapiés ajustables. Asiste a terapias de rehabilitación 3 veces por semana.',
+    ubicacion: 'Cuautlancingo, Puebla',
     prioridad: 'Alta',
     estado: 'Activo',
     peticion: 'Equipo médico',
-    imagen: IMAGEN_GENERICA,
-    beneficiario: 'Roberto Sánchez',
+    imagen: 'https://images.unsplash.com/photo-1576765608622-067973a79f53?w=800&q=80',
+    beneficiario: 'Luis Alberto Pérez',
     destacado: true,
     coordenadas: {
-      latitud: 19.3467,
-      longitud: -99.1618
+      latitud: 19.0589,
+      longitud: -98.1836
     },
-    distancia: 4.3,
+    distancia: 5.4,
     fecha: new Date().toISOString(),
   },
 ];
@@ -127,7 +127,7 @@ async function crearCasos() {
 
     for (let i = 0; i < casosEjemplo.length; i++) {
       const caso = casosEjemplo[i];
-      console.log(`📝 Creando caso ${i + 1}/5: "${caso.nombre}"...`);
+      console.log(`📝 Creando caso ${i + 1}/${casosEjemplo.length}: "${caso.nombre}"...`);
 
       // Crear el documento del caso
       const docRef = await addDoc(casosRef, caso);
@@ -172,6 +172,7 @@ async function crearCasos() {
 console.log('');
 console.log('═══════════════════════════════════════════════════════');
 console.log('   📱 Script de Creación de Casos - Aquí Estoy');
+console.log('   📍 Ubicación: Puebla, México');
 console.log('═══════════════════════════════════════════════════════');
 console.log('');
 

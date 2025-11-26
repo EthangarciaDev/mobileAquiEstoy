@@ -1,42 +1,114 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Image,
-  TouchableOpacity,
-  Switch,
-  ScrollView,
-  Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
-import { mockUsuario } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { Usuario } from '@/types';
+import { actualizarDatosUsuario, obtenerDatosUsuario } from '@/utils/firebase';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [nombre, setNombre] = useState(mockUsuario.nombre);
-  const [telefono, setTelefono] = useState(mockUsuario.telefono);
-  const [zonaDonacion, setZonaDonacion] = useState(mockUsuario.zonaDonacionHabitual);
-  const [notifNuevosCasos, setNotifNuevosCasos] = useState(
-    mockUsuario.preferenciasNotificacion.nuevoCasos
-  );
-  const [notifActualizaciones, setNotifActualizaciones] = useState(
-    mockUsuario.preferenciasNotificacion.actualizacionesDonaciones
-  );
-  const [notifAgradecimientos, setNotifAgradecimientos] = useState(
-    mockUsuario.preferenciasNotificacion.mensajesAgradecimiento
-  );
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [zonaDonacion, setZonaDonacion] = useState('');
+  const [notifNuevosCasos, setNotifNuevosCasos] = useState(true);
+  const [notifActualizaciones, setNotifActualizaciones] = useState(true);
+  const [notifAgradecimientos, setNotifAgradecimientos] = useState(true);
 
-  const handleSave = () => {
-    Alert.alert(
-      'Cambios Guardados',
-      'Tu información de perfil se ha actualizado correctamente',
-      [{ text: 'OK', onPress: () => setIsEditing(false) }]
-    );
+  useEffect(() => {
+    cargarDatosUsuario();
+  }, [user]);
+
+  const cargarDatosUsuario = async () => {
+    if (!user) return;
+    
+    setCargando(true);
+    const datos = await obtenerDatosUsuario(user.uid);
+    
+    if (datos) {
+      setDatosUsuario(datos);
+      setNombre(datos.nombre);
+      setTelefono(datos.telefono);
+      setZonaDonacion(datos.zonaDonacionHabitual || datos.ubicacion);
+      if (datos.preferenciasNotificacion) {
+        setNotifNuevosCasos(datos.preferenciasNotificacion.nuevoCasos);
+        setNotifActualizaciones(datos.preferenciasNotificacion.actualizacionesDonaciones);
+        setNotifAgradecimientos(datos.preferenciasNotificacion.mensajesAgradecimiento);
+      }
+    }
+    setCargando(false);
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    // Validaciones
+    if (!nombre.trim()) {
+      Alert.alert('Error', 'El nombre no puede estar vacío');
+      return;
+    }
+
+    if (!telefono.trim()) {
+      Alert.alert('Error', 'El teléfono no puede estar vacío');
+      return;
+    }
+
+    setGuardando(true);
+
+    // Preparar datos a actualizar
+    const datosActualizados: Partial<Usuario> = {
+      nombre: nombre.trim(),
+      telefono: telefono.trim(),
+      zonaDonacionHabitual: zonaDonacion.trim(),
+      preferenciasNotificacion: {
+        nuevoCasos: notifNuevosCasos,
+        actualizacionesDonaciones: notifActualizaciones,
+        mensajesAgradecimiento: notifAgradecimientos,
+      },
+    };
+
+    // Actualizar en Firebase
+    const resultado = await actualizarDatosUsuario(user.uid, datosActualizados);
+
+    setGuardando(false);
+
+    if (resultado.success) {
+      // Actualizar datos locales
+      if (datosUsuario) {
+        setDatosUsuario({
+          ...datosUsuario,
+          ...datosActualizados,
+        });
+      }
+
+      Alert.alert(
+        'Cambios Guardados',
+        'Tu información de perfil se ha actualizado correctamente',
+        [{ text: 'OK', onPress: () => setIsEditing(false) }]
+      );
+    } else {
+      Alert.alert(
+        'Error',
+        resultado.error || 'No se pudieron guardar los cambios. Intenta nuevamente.'
+      );
+    }
   };
 
   const handlePhotoChange = () => {
@@ -47,13 +119,31 @@ export default function ProfileScreen() {
     ]);
   };
 
+  if (cargando) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Cargando perfil...</Text>
+      </View>
+    );
+  }
+
+  if (!datosUsuario || !user) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Ionicons name="person-circle-outline" size={64} color={theme.colors.textSecondary} />
+        <Text style={styles.emptyText}>No se pudo cargar el perfil</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       {/* Header con foto */}
       <View style={styles.header}>
         <View style={styles.photoContainer}>
           <Image
-            source={{ uri: mockUsuario.fotoPerfil }}
+            source={{ uri: datosUsuario.fotoPerfil || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png' }}
             style={styles.profilePhoto}
           />
           <TouchableOpacity style={styles.editPhotoButton} onPress={handlePhotoChange}>
@@ -61,7 +151,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.headerName}>{nombre}</Text>
-        <Text style={styles.headerEmail}>{mockUsuario.correo}</Text>
+        <Text style={styles.headerEmail}>{datosUsuario.correo}</Text>
         <View style={styles.badge}>
           <Ionicons name="heart" size={16} color="#FFFFFF" />
           <Text style={styles.badgeText}>Donador Activo</Text>
@@ -98,7 +188,7 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.label}>Correo Electrónico</Text>
             <Text style={[styles.value, styles.valueDisabled]}>
-              {mockUsuario.correo}
+              {datosUsuario.correo}
             </Text>
           </View>
 
@@ -120,7 +210,7 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.label}>Ubicación</Text>
             <Text style={[styles.value, styles.valueDisabled]}>
-              {mockUsuario.ubicacion}
+              {datosUsuario.ubicacion}
             </Text>
           </View>
 
@@ -208,12 +298,34 @@ export default function ProfileScreen() {
       {/* Botones de Acción */}
       {isEditing ? (
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+          <TouchableOpacity 
+            style={[styles.saveButton, guardando && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={guardando}
+          >
+            {guardando ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => setIsEditing(false)}
+            onPress={() => {
+              // Restaurar valores originales
+              if (datosUsuario) {
+                setNombre(datosUsuario.nombre);
+                setTelefono(datosUsuario.telefono);
+                setZonaDonacion(datosUsuario.zonaDonacionHabitual || datosUsuario.ubicacion);
+                if (datosUsuario.preferenciasNotificacion) {
+                  setNotifNuevosCasos(datosUsuario.preferenciasNotificacion.nuevoCasos);
+                  setNotifActualizaciones(datosUsuario.preferenciasNotificacion.actualizacionesDonaciones);
+                  setNotifAgradecimientos(datosUsuario.preferenciasNotificacion.mensajesAgradecimiento);
+                }
+              }
+              setIsEditing(false);
+            }}
+            disabled={guardando}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
@@ -426,6 +538,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -468,5 +583,20 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 100,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: theme.spacing.md,
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: theme.colors.textSecondary,
   },
 });
