@@ -1,15 +1,15 @@
+import { mockNotificaciones } from '@/constants/mockData';
+import { theme } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/constants/theme';
-import { mockNotificaciones } from '@/constants/mockData';
 
 export default function NotificacionesScreen() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function NotificacionesScreen() {
                 style={[styles.notificationCard, styles.notificationUnread]}
                 onPress={() => {
                   if (notificacion.casoId) {
-                    router.push('/caso-detalle');
+                    router.push('/caso-detallado');
                   } else if (notificacion.donacionId) {
                     router.push('/historial-donaciones');
                   }
@@ -124,7 +124,7 @@ export default function NotificacionesScreen() {
                 style={styles.notificationCard}
                 onPress={() => {
                   if (notificacion.casoId) {
-                    router.push('/caso-detalle');
+                    router.push('/caso-detallado');
                   } else if (notificacion.donacionId) {
                     router.push('/historial-donaciones');
                   }

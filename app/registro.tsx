@@ -1,25 +1,26 @@
 import { LOGO_URL } from '@/constants/mockData';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import { registrarUsuario } from '@/utils/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function RegistroScreen() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -31,6 +32,14 @@ export default function RegistroScreen() {
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [errores, setErrores] = useState<any>({});
   const [cargando, setCargando] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated]);
 
   const validarCorreo = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -96,23 +105,22 @@ export default function RegistroScreen() {
     setErrores(nuevosErrores);
 
     if (valido) {
-      setCargando(true);
-      const resultado = await registrarUsuario(correo, contrasena, nombre, telefono, ubicacion);
-      setCargando(false);
+      setIsLoading(true);
+      setError('');
 
-      if (resultado.success) {
-        Alert.alert(
-          '¡Registro Exitoso!',
-          'Tu cuenta ha sido creada correctamente. Bienvenido a Aquí Estoy',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
-            },
-          ]
-        );
-      } else {
-        Alert.alert('Error', resultado.error || 'No se pudo crear la cuenta');
+      try {
+        const result = await registrarUsuario(correo, contrasena, nombre, telefono, ubicacion);
+        
+        if (result.success) {
+          router.replace('/(tabs)');
+        } else {
+          setError(result.error || 'Error al registrar usuario');
+        }
+      } catch (error) {
+        setError('Error inesperado al registrar');
+        console.error('Error en registro:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -136,6 +144,12 @@ export default function RegistroScreen() {
         {/* Formulario */}
         <View style={styles.formContainer}>
           <Text style={styles.title}>Crear Cuenta</Text>
+
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           {/* Campo de nombre */}
           <View style={styles.inputContainer}>
@@ -331,17 +345,15 @@ export default function RegistroScreen() {
           ) : null}
 
           {/* Botón de registro */}
-          <TouchableOpacity 
-            style={[styles.registerButton, cargando && styles.registerButtonDisabled]} 
+          <Pressable 
+            style={[styles.registerButton, isLoading && styles.buttonDisabled]} 
             onPress={handleRegister}
-            disabled={cargando}
+            disabled={isLoading}
           >
-            {cargando ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.registerButtonText}>Crear Cuenta</Text>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.registerButtonText}>
+              {isLoading ? 'Registrando...' : 'Crear Cuenta'}
+            </Text>
+          </Pressable>
 
           {/* Link a login */}
           <View style={styles.loginContainer}>
@@ -419,11 +431,16 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 5,
   },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
   errorText: {
-    color: theme.colors.error,
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
+    color: '#dc2626',
+    textAlign: 'center',
+    fontSize: 14,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -472,7 +489,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  registerButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.6,
   },
   loginContainer: {

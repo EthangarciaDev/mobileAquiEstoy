@@ -1,30 +1,41 @@
 import { LOGO_URL } from '@/constants/mockData';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import { iniciarSesion } from '@/utils/firebase';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 export default function LoginScreen() {
-  const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [errores, setErrores] = useState({ correo: '', contrasena: '' });
   const [cargando, setCargando] = useState(false);
+
+  // Si ya está autenticado, redirigir
+  useEffect(() => {
+    console.log('Login - isAuthenticated:', isAuthenticated, 'user:', user?.email);
+    if (isAuthenticated) {
+      console.log('Redirigiendo a tabs...');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, user]);
 
   const validarCorreo = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,22 +66,27 @@ export default function LoginScreen() {
 
     if (valido) {
       setCargando(true);
-      const resultado = await iniciarSesion(correo, contrasena);
-      setCargando(false);
-
-      if (resultado.success) {
-        Alert.alert(
-          '¡Bienvenido!',
-          'Has iniciado sesión correctamente',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
-            },
-          ]
-        );
-      } else {
-        Alert.alert('Error', resultado.error || 'No se pudo iniciar sesión');
+      setError('');
+      try {
+        console.log('Intentando iniciar sesión con:', correo);
+        const result = await iniciarSesion(correo, contrasena);
+        
+        console.log('Resultado de inicio de sesión:', result.success);
+        
+        if (result.success) {
+          console.log('Inicio de sesión exitoso, usuario:', result.user?.email);
+          // Esperar un momento para que el AuthContext se actualice
+          setTimeout(() => {
+            router.replace('/(tabs)');
+          }, 500);
+        } else {
+          setError(result.error || 'Error al iniciar sesión');
+        }
+      } catch (error) {
+        console.error('Error inesperado en login:', error);
+        setError('Error inesperado al iniciar sesión');
+      } finally {
+        setCargando(false);
       }
     }
   };
@@ -94,6 +110,12 @@ export default function LoginScreen() {
         {/* Formulario */}
         <View style={styles.formContainer}>
           <Text style={styles.title}>Iniciar Sesión</Text>
+
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           {/* Campo de correo */}
           <View style={styles.inputContainer}>
@@ -162,17 +184,15 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Botón de login */}
-          <TouchableOpacity 
-            style={[styles.loginButton, cargando && styles.loginButtonDisabled]} 
+          <Pressable
+            style={[styles.loginButton, (cargando || isLoading) && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={cargando}
+            disabled={cargando || isLoading}
           >
-            {cargando ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.loginButtonText}>
+              {cargando || isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </Text>
+          </Pressable>
 
           {/* Divider */}
           <View style={styles.divider}>
@@ -181,7 +201,6 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          
           {/* Link a registro */}
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>¿No tienes una cuenta? </Text>
@@ -258,11 +277,16 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 5,
   },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
   errorText: {
-    color: theme.colors.error,
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
+    color: '#dc2626',
+    textAlign: 'center',
+    fontSize: 14,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -290,7 +314,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  loginButtonDisabled: {
+  buttonDisabled: {
     opacity: 0.6,
   },
   divider: {

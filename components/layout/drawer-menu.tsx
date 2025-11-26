@@ -1,24 +1,21 @@
-import { theme } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { MenuItem, Usuario } from '@/types';
-import { obtenerDatosUsuario } from '@/utils/firebase';
+import { cerrarSesion, obtenerDatosUsuario } from '@/utils/firebase';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const DRAWER_WIDTH = Math.min(300, Math.round(SCREEN_WIDTH * 0.78));
 
 interface DrawerMenuProps {
   isOpen: boolean;
@@ -26,238 +23,254 @@ interface DrawerMenuProps {
   menuItems: MenuItem[];
 }
 
+const ICON_MAP: { [key: string]: keyof typeof Ionicons.glyphMap } = {
+  inicio: 'home-outline',
+  perfil: 'person-outline',
+  busqueda: 'search-outline',
+  notificaciones: 'notifications-outline',
+  'mi-impacto': 'trophy-outline',
+  'historial-donaciones': 'time-outline',
+  contactanos: 'mail-outline',
+  ajustes: 'settings-outline',
+};
+
 export function DrawerMenu({ isOpen, onClose, menuItems }: DrawerMenuProps) {
-  const router = useRouter();
-  const { user } = useAuth();
-  const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const { user, isAuthenticated } = useAuth();
+  const [slideAnim] = useState(new Animated.Value(-300));
+  const [userData, setUserData] = useState<Usuario | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Animated.timing(drawerAnim, {
-      toValue: isOpen ? 0 : -DRAWER_WIDTH,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [isOpen, drawerAnim]);
-
-  useEffect(() => {
-    cargarDatosUsuario();
-  }, [user]);
+    console.log('🍔 DrawerMenu - isAuthenticated:', isAuthenticated, 'user:', user?.email);
+    
+    if (isAuthenticated && user) {
+      cargarDatosUsuario();
+    } else {
+      setUserData(null);
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   const cargarDatosUsuario = async () => {
-    if (!user) {
-      setCargando(false);
+    if (!user?.uid) {
+      console.log('🍔 DrawerMenu - No hay UID de usuario');
+      setLoading(false);
       return;
     }
-    
-    setCargando(true);
-    const datos = await obtenerDatosUsuario(user.uid);
-    setDatosUsuario(datos);
-    setCargando(false);
+
+    try {
+      setLoading(true);
+      console.log('🍔 DrawerMenu - Cargando datos del usuario:', user.uid);
+      const datos = await obtenerDatosUsuario(user.uid);
+      console.log('🍔 DrawerMenu - Datos cargados:', datos?.nombre);
+      setUserData(datos);
+    } catch (error) {
+      console.error('Error al cargar datos del usuario:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getIconName = (key: string): keyof typeof Ionicons.glyphMap => {
-    const iconMap: { [key: string]: keyof typeof Ionicons.glyphMap } = {
-      'inicio': 'home',
-      'login': 'log-in',
-      'registro': 'person-add',
-      'perfil': 'person',
-      'mis-donaciones': 'gift',
-      'historial-donaciones': 'time',
-      'mi-impacto': 'stats-chart',
-      'busqueda': 'search',
-      'notificaciones': 'notifications',
-      'contactanos': 'mail',
-      'ajustes': 'settings',
-    };
-    return iconMap[key] || 'ellipse';
-  };
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: isOpen ? 0 : -300,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isOpen]);
 
-  const handleItemPress = (key: string) => {
+  const handleNavigate = (key: string) => {
+    console.log('🍔 DrawerMenu - Navegando a:', key);
     onClose();
     
-    const routeMap: { [key: string]: string } = {
-      'inicio': '/(tabs)',
-      'login': '/login',
-      'registro': '/registro',
-      'perfil': '/perfil',
-      'mis-donaciones': '/mis-donaciones',
-      'historial-donaciones': '/historial-donaciones',
+    const routes: { [key: string]: string } = {
+      inicio: '/(tabs)',
+      perfil: '/perfil',
+      busqueda: '/busqueda',
+      notificaciones: '/notificaciones',
       'mi-impacto': '/mi-impacto',
-      'busqueda': '/busqueda',
-      'notificaciones': '/notificaciones',
-      'contactanos': '/contactanos',
-      'ajustes': '/ajustes',
+      'historial-donaciones': '/historial-donaciones',
+      contactanos: '/contactanos',
+      ajustes: '/ajustes',
     };
 
-    const route = routeMap[key];
+    const route = routes[key];
     if (route) {
       router.push(route as any);
     }
   };
 
+  const handleLogout = () => {
+    console.log('🍔 DrawerMenu - Solicitando cerrar sesión...');
+    
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro que deseas cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🍔 DrawerMenu - Cerrando sesión...');
+              onClose();
+              const result = await cerrarSesion();
+              if (result.success) {
+                console.log('✅ Sesión cerrada exitosamente');
+                // El AuthContext detectará el cambio y redirigirá automáticamente
+                router.replace('/login');
+              } else {
+                console.error('❌ Error al cerrar sesión:', result.error);
+                Alert.alert('Error', 'No se pudo cerrar sesión. Por favor intenta de nuevo.');
+              }
+            } catch (error) {
+              console.error('❌ Error inesperado al cerrar sesión:', error);
+              Alert.alert('Error', 'Ocurrió un error inesperado al cerrar sesión.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <>
-      {/* Overlay */}
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onClose}
-        style={[styles.overlay, isOpen ? { display: 'flex' } : { display: 'none' }]}
-      />
+    <Modal
+      transparent
+      visible={isOpen}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Animated.View
+          style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <ScrollView style={styles.content}>
+            {/* User Profile Section */}
+            <View style={styles.profileSection}>
+              {loading ? (
+                <ActivityIndicator size="small" color="#2563eb" />
+              ) : (
+                <>
+                  <Image
+                    source={
+                      userData?.fotoPerfil
+                        ? { uri: userData.fotoPerfil }
+                        : require('@/assets/images/fotoperfil.jpeg')
+                    }
+                    style={styles.avatar}
+                  />
+                  <Text style={styles.userName}>{userData?.nombre || user?.displayName || 'Usuario'}</Text>
+                  <Text style={styles.userEmail}>{user?.email || ''}</Text>
+                </>
+              )}
+            </View>
 
-      {/* Drawer */}
-      <Animated.View
-        style={[
-          styles.drawer,
-          {
-            transform: [{ translateX: drawerAnim }],
-          },
-        ]}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          {/* Header del drawer con perfil de usuario */}
-          <View style={styles.drawerHeader}>
-            {cargando ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : datosUsuario ? (
-              <>
-                <Image
-                  source={{ uri: datosUsuario.fotoPerfil || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png' }}
-                  style={styles.profileImage}
-                />
-                <Text style={styles.userName}>{datosUsuario.nombre}</Text>
-                <Text style={styles.userEmail}>{datosUsuario.correo}</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="person-circle-outline" size={80} color="#FFFFFF" />
-                <Text style={styles.userName}>Usuario</Text>
-                <Text style={styles.userEmail}>{user?.email || 'No disponible'}</Text>
-              </>
-            )}
-          </View>
+            {/* Menu Items */}
+            <View style={styles.menuSection}>
+              {menuItems.map((item) => (
+                <Pressable
+                  key={item.key}
+                  style={styles.menuItem}
+                  onPress={() => handleNavigate(item.key)}
+                >
+                  <Ionicons
+                    name={ICON_MAP[item.key]}
+                    size={24}
+                    color="#374151"
+                  />
+                  <Text style={styles.menuText}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
 
-          {/* Menú items */}
-          <View style={styles.menuContainer}>
-            {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.key}
-                style={styles.drawerItem}
-                onPress={() => handleItemPress(item.key)}
-              >
-                <Ionicons 
-                  name={getIconName(item.key)} 
-                  size={24} 
-                  color={theme.colors.primary} 
-                  style={styles.itemIcon}
-                />
-                <Text style={styles.drawerItemText}>{item.label}</Text>
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={20} 
-                  color={theme.colors.textSecondary} 
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={{ flex: 1 }} />
-
-          {/* Footer */}
-          <View style={styles.drawerFooter}>
-            <Text style={styles.drawerVersion}>Aquí Estoy v1.0</Text>
-            <Text style={styles.drawerCopyright}>© 2025 - Conectando corazones</Text>
-          </View>
-        </SafeAreaView>
-      </Animated.View>
-    </>
+            {/* Logout Section */}
+            <View style={styles.logoutSection}>
+              <Pressable style={styles.logoutButton} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color="#ef4444" />
+                <Text style={styles.logoutText}>Cerrar Sesión</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </Animated.View>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    left: 0,
-    top: 56,
-    right: 0,
-    bottom: 56,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 30,
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flexDirection: 'row',
   },
   drawer: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 56,
-    width: DRAWER_WIDTH,
+    width: 280,
     backgroundColor: '#fff',
-    borderRightWidth: 1,
-    borderRightColor: '#eee',
-    zIndex: 40,
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  drawerHeader: {
-    backgroundColor: theme.colors.primary,
-    padding: 20,
-    paddingTop: 40,
-    alignItems: 'center',
+  content: {
+    flex: 1,
+  },
+  profileSection: {
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#e5e7eb',
+    alignItems: 'center',
   },
-  profileImage: {
+  avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
     marginBottom: 12,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
   },
   userName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: '#1f2937',
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    opacity: 0.9,
+    fontSize: 14,
+    color: '#6b7280',
   },
-  menuContainer: {
+  menuSection: {
     paddingVertical: 8,
   },
-  drawerItem: { 
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.background,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 16,
   },
-  itemIcon: {
-    marginRight: 16,
-  },
-  drawerItemText: { 
+  menuText: {
     fontSize: 16,
-    color: theme.colors.text,
-    flex: 1,
-    fontWeight: '500',
+    color: '#374151',
   },
-  drawerFooter: {
-    padding: 20,
+  logoutSection: {
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: '#e5e7eb',
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  logoutButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 16,
   },
-  drawerVersion: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  drawerCopyright: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
+  logoutText: {
+    fontSize: 16,
+    color: '#ef4444',
+    fontWeight: '500',
   },
 });

@@ -47,7 +47,7 @@ export default function HomeScreen() {
   const casosCercanos = casos.filter((caso) => caso.distancia && caso.distancia < 5);
 
   const handleCasoPress = (casoId: string) => {
-    router.push(`/caso-detalle?id=${casoId}`);
+    router.push(`/caso-detallado?id=${casoId}`);
   };
 
   return (

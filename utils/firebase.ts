@@ -2,21 +2,28 @@
 // Servicio de Firebase para autenticación y base de datos
 import firebaseConfig from '@/constants/firebaseConfig';
 import { Usuario } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
-  getAuth,
+  getReactNativePersistence,
+  initializeAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
-  User,
+  User
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Inicializar Auth con persistencia
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
+
 export const db = getFirestore(app);
 
 // Registrar nuevo usuario

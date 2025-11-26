@@ -6,14 +6,14 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -126,7 +126,7 @@ export default function MapaScreen() {
     <TouchableOpacity
       key={caso.id}
       style={styles.casoCard}
-      onPress={() => router.push(`/caso-detalle?id=${caso.id}`)}
+      onPress={() => router.push(`/caso-detallado?id=${caso.id}`)}
     >
       <Image source={{ uri: caso.img }} style={styles.casoImage} />
       <View style={styles.casoInfo}>
@@ -292,7 +292,7 @@ export default function MapaScreen() {
                 </Text>
                 <TouchableOpacity
                   style={styles.verDetalleButton}
-                  onPress={() => router.push(`/caso-detalle?id=${casoSeleccionado.id}`)}
+                  onPress={() => router.push(`/caso-detallado?id=${casoSeleccionado.id}`)}
                 >
                   <Text style={styles.verDetalleText}>Ver detalles</Text>
                   <Ionicons name="arrow-forward" size={16} color="#fff" />

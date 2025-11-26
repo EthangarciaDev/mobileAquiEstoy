@@ -1,5 +1,5 @@
-import { observarEstadoAuth } from '@/utils/firebase';
-import { User } from 'firebase/auth';
+import { auth } from '@/utils/firebase';
+import { User, onAuthStateChanged } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
@@ -27,22 +27,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = observarEstadoAuth((currentUser) => {
+    console.log('🔵 AuthProvider: Configurando observador de autenticación...');
+
+    // Suscribirse a cambios de autenticación
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log('🔵 AuthProvider: Estado de auth cambió');
+      console.log('   - Usuario:', currentUser?.email || 'null');
+      console.log('   - UID:', currentUser?.uid || 'null');
+
       setUser(currentUser);
       setLoading(false);
     });
 
-    return unsubscribe;
+    // Cleanup
+    return () => {
+      console.log('🔵 AuthProvider: Limpiando observador');
+      unsubscribe();
+    };
   }, []);
 
+  const value = {
+    user,
+    loading,
+    isAuthenticated: user !== null,
+  };
+
+  if (loading) {
+    console.log('🔵 AuthProvider: Cargando...');
+  } else {
+    console.log('🔵 AuthProvider: Listo - isAuthenticated:', value.isAuthenticated);
+  }
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

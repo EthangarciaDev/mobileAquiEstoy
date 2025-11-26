@@ -6,14 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const TIPOS_AYUDA = [
@@ -211,7 +211,7 @@ export default function BusquedaScreen() {
           data={casosFiltrados}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <CasoCard caso={item} onPress={() => router.push(`/caso-detalle?id=${item.id}`)} />
+            <CasoCard caso={item} onPress={() => router.push(`/caso-detallado?id=${item.id}`)} />
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
