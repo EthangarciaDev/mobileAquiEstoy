@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Image,
-  Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
+import { Caso } from '@/types';
+import { obtenerCasoPorId } from '@/utils/casosService';
+import { crearDonacion } from '@/utils/donacionesService';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 const TIPOS_AYUDA = [
   { id: 'alimentos', label: 'Alimentos', icon: 'fast-food' },
@@ -38,31 +43,97 @@ const METODOS_ENTREGA = [
 
 export default function RealizarDonacionScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { user } = useAuth();
+  const [caso, setCaso] = useState<Caso | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [guardando, setGuardando] = useState(false);
   const [tipoAyuda, setTipoAyuda] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [metodoEntrega, setMetodoEntrega] = useState('');
 
-  const handleConfirmar = () => {
+  useEffect(() => {
+    cargarCaso();
+  }, [params.casoId]);
+
+  const cargarCaso = async () => {
+    if (!params.casoId || typeof params.casoId !== 'string') {
+      Alert.alert('Error', 'ID de caso inválido');
+      router.back();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const casoData = await obtenerCasoPorId(params.casoId);
+      if (casoData) {
+        setCaso(casoData);
+      } else {
+        Alert.alert('Error', 'No se encontró el caso');
+        router.back();
+      }
+    } catch (error) {
+      console.error('Error al cargar caso:', error);
+      Alert.alert('Error', 'No se pudo cargar la información del caso');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmar = async () => {
     if (!tipoAyuda || !cantidad || !metodoEntrega) {
       Alert.alert('Campos incompletos', 'Por favor completa todos los campos requeridos');
       return;
     }
 
-    Alert.alert(
-      '¡Donación Confirmada!',
-      'Gracias por tu generosidad. Tu ayuda llegará pronto a quien la necesita.',
-      [
-        {
-          text: 'Ver mis donaciones',
-          onPress: () => router.push('/historial-donaciones'),
-        },
-        {
-          text: 'Volver al inicio',
-          onPress: () => router.push('/(tabs)'),
-        },
-      ]
-    );
+    if (!user || !caso) {
+      Alert.alert('Error', 'Información de usuario o caso no disponible');
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      console.log('🎁 Creando donación...');
+      console.log('   - Usuario:', user.uid);
+      console.log('   - Caso:', caso.id);
+      console.log('   - Tipo:', tipoAyuda);
+
+      const resultado = await crearDonacion(
+        caso.id,
+        user.uid,
+        user.displayName || user.email || 'Usuario',
+        tipoAyuda,
+        cantidad,
+        metodoEntrega === 'personal' ? 'Personal' : 'Intermediario'
+      );
+
+      if (resultado.success) {
+        console.log('✅ Donación creada exitosamente:', resultado.donacionId);
+        Alert.alert(
+          '¡Donación Confirmada!',
+          'Gracias por tu generosidad. Tu ayuda llegará pronto a quien la necesita.',
+          [
+            {
+              text: 'Ver mis donaciones',
+              onPress: () => router.replace('/historial-donaciones'),
+            },
+            {
+              text: 'Volver al inicio',
+              onPress: () => router.replace('/(tabs)'),
+            },
+          ]
+        );
+      } else {
+        console.error('❌ Error al crear donación:', resultado.error);
+        Alert.alert('Error', resultado.error || 'No se pudo registrar la donación');
+      }
+    } catch (error) {
+      console.error('❌ Error inesperado:', error);
+      Alert.alert('Error', 'Ocurrió un error inesperado. Por favor intenta de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -77,22 +148,29 @@ export default function RealizarDonacionScreen() {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Información del caso */}
-        <View style={styles.casoCard}>
-          <Image
-            source={{
-              uri: 'https://media.istockphoto.com/id/483691035/es/foto/ni%C3%B1o-de-brasil.jpg?s=612x612&w=0&k=20&c=nf_T3LnIgJKoP9TY2AsVYYeUJqd6zu6FbGKAVzfv8aI=',
-            }}
-            style={styles.casoImage}
-          />
-          <View style={styles.casoInfo}>
-            <Text style={styles.casoTitulo}>Juan tiene hambre (Urgente)</Text>
-            <View style={styles.casoMeta}>
-              <Ionicons name="location" size={14} color={theme.colors.textSecondary} />
-              <Text style={styles.casoMetaText}>Zona Sur, Ciudad de México</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Cargando información...</Text>
           </View>
-        </View>
+        ) : caso ? (
+          <>
+            {/* Información del caso */}
+            <View style={styles.casoCard}>
+              <Image
+                source={{ uri: caso.img }}
+                style={styles.casoImage}
+              />
+              <View style={styles.casoInfo}>
+                <Text style={styles.casoTitulo}>{caso.titulo}</Text>
+                <View style={styles.casoMeta}>
+                  <Ionicons name="location" size={14} color={theme.colors.textSecondary} />
+                  <Text style={styles.casoMetaText}>{caso.ubicacion}</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        ) : null}
 
         {/* Selección de tipo de ayuda */}
         <View style={styles.section}>
@@ -223,9 +301,19 @@ export default function RealizarDonacionScreen() {
         </View>
 
         {/* Botón de confirmación */}
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmar}>
-          <Ionicons name="heart" size={24} color="#FFFFFF" />
-          <Text style={styles.confirmButtonText}>Confirmar Donación</Text>
+        <TouchableOpacity 
+          style={[styles.confirmButton, guardando && styles.confirmButtonDisabled]} 
+          onPress={handleConfirmar}
+          disabled={guardando || loading}
+        >
+          {guardando ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="heart" size={24} color="#FFFFFF" />
+          )}
+          <Text style={styles.confirmButtonText}>
+            {guardando ? 'Guardando...' : 'Confirmar Donación'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.bottomSpacing} />
@@ -452,5 +540,18 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.6,
   },
 });

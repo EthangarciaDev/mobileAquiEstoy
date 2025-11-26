@@ -1,22 +1,59 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Modal,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
-import { mockHistorialDonaciones } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { Donacion } from '@/types';
+import { obtenerDonacionesUsuario } from '@/utils/donacionesService';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Image,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export default function HistorialDonacionesScreen() {
   const router = useRouter();
-  const [donacionSeleccionada, setDonacionSeleccionada] = useState<any>(null);
+  const { user } = useAuth();
+  const [donaciones, setDonaciones] = useState<Donacion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
+  const [donacionSeleccionada, setDonacionSeleccionada] = useState<Donacion | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    cargarDonaciones();
+  }, [user]);
+
+  const cargarDonaciones = async () => {
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('📦 Cargando donaciones del usuario:', user.uid);
+      const donacionesData = await obtenerDonacionesUsuario(user.uid);
+      console.log('📦 Donaciones cargadas:', donacionesData.length);
+      setDonaciones(donacionesData);
+    } catch (error) {
+      console.error('Error al cargar donaciones:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefrescando(true);
+    await cargarDonaciones();
+    setRefrescando(false);
+  };
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -64,34 +101,56 @@ export default function HistorialDonacionesScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Estadísticas */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{mockHistorialDonaciones.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refrescando} onRefresh={handleRefresh} />
+        }
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Cargando historial...</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>
-              {mockHistorialDonaciones.filter((d) => d.estado === 'Recibida').length}
+        ) : donaciones.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="gift-outline" size={64} color={theme.colors.textSecondary} />
+            <Text style={styles.emptyTitle}>No hay donaciones</Text>
+            <Text style={styles.emptyText}>
+              Aún no has realizado ninguna donación. ¡Empieza a ayudar hoy!
             </Text>
-            <Text style={styles.statLabel}>Completadas</Text>
+            <TouchableOpacity 
+              style={styles.emptyButton}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.emptyButtonText}>Explorar casos</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>
-              {
-                mockHistorialDonaciones.filter(
-                  (d) => d.estado === 'Pendiente' || d.estado === 'En camino'
-                ).length
-              }
-            </Text>
-            <Text style={styles.statLabel}>En Proceso</Text>
-          </View>
-        </View>
+        ) : (
+          <>
+            {/* Estadísticas */}
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{donaciones.length}</Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {donaciones.filter((d) => d.estado === 'Entregada').length}
+                </Text>
+                <Text style={styles.statLabel}>Completadas</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {donaciones.filter((d) => d.estado === 'Pendiente').length}
+                </Text>
+                <Text style={styles.statLabel}>Pendientes</Text>
+              </View>
+            </View>
 
-        {/* Lista de donaciones */}
-        <View style={styles.listContainer}>
-          {mockHistorialDonaciones.map((donacion) => (
+            {/* Lista de donaciones */}
+            <View style={styles.listContainer}>
+              {donaciones.map((donacion) => (
             <TouchableOpacity
               key={donacion.id}
               style={styles.donacionCard}
@@ -149,8 +208,10 @@ export default function HistorialDonacionesScreen() {
                 <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
+              ))}
+            </View>
+          </>
+        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -478,5 +539,47 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 100,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 400,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  emptyButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
